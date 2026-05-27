@@ -40,14 +40,13 @@ body{
 .app.rv-off .rv-wrap{display:none}
 .app.rv-off .rv-metric{display:none}
 .app.rv-off .sr-pa{display:none}
-/* RV-off: full width of .app, no inset.  Also force a coloured border so
-   you can tell at a glance whether you're seeing the latest CSS or a
-   cached version -- if the chart has a thin blue dashed outline, the new
-   CSS is live; if not, the browser is showing stale CSS and you need
-   ⌘⇧R to hard refresh. */
+/* When RV is off, the LV becomes a 1:1 square so the loop has equal
+   vertical and horizontal room and reads as the dominant thing on screen.
+   Width is bounded by viewport height (65vh) so the square always fits
+   without scrolling; capped at 700 px for huge external displays. */
 @media (min-width:720px){
   .app.rv-off .plot-row{grid-template-columns:1fr}
-  .app.rv-off .lv-wrap{outline:2px dashed #378ADD;outline-offset:4px}
+  .app.rv-off .lv-wrap{aspect-ratio:1/1;max-width:min(700px,65vh);margin:0 auto}
 }
 .view-toggle{margin-bottom:6px}
 .rv-toggle{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;font-size:14px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2}
@@ -93,13 +92,13 @@ body{
 <marker id="ax-arrow-lv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
 </defs>
 
-<line x1="100" y1="325" x2="625" y2="325" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
-<line x1="100" y1="325" x2="100" y2="15" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
+<line class="ax-line-x" x1="100" y1="325" x2="625" y2="325" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
+<line class="ax-line-y" x1="100" y1="325" x2="100" y2="15" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
 
 <g class="axis-ticks"></g>
 
-<text class="ax-title" x="35" y="170" text-anchor="middle" transform="rotate(-90 35 170)">LV pressure (mmHg)</text>
-<text class="ax-title" x="362" y="362" text-anchor="middle">LV volume (mL)</text>
+<text class="ax-title ax-title-y" x="35" y="170" text-anchor="middle" transform="rotate(-90 35 170)">LV pressure (mmHg)</text>
+<text class="ax-title ax-title-x" x="362" y="362" text-anchor="middle">LV volume (mL)</text>
 
 <g class="loop-g">
 <path class="edpvr" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5 4" d=""/>
@@ -477,9 +476,48 @@ function updateMetrics(dLV, dRV, state) {
 }
 
 const svgLV    = document.querySelector('.lv-wrap svg');
-const scalesLV = makeScales(CONFIG.lv.axes);
+// scalesLV is `let` not `const` because the LV geometry is swapped
+// between a 680x380 rectangle (RV-on, side-by-side) and a 680x680 square
+// (RV-off) at toggle time -- the scales are rebuilt each switch.
+let scalesLV   = makeScales(CONFIG.lv.axes);
 drawAxes(svgLV, CONFIG.lv.axes, scalesLV);
 const lvGroup  = svgLV.querySelector('.loop-g');
+
+// Two geometry presets for the LV SVG. Toggled in setRVVisible based on
+// whether the chart is sharing the row with the RV (wide rectangle) or
+// has the column to itself (square). Only axes.y0 and the static axis
+// label positions change -- everything else (Vmax, Pmax, tick spacing,
+// x0/x1, V0, EDPVR coefficients) is identical.
+const LV_GEOMETRY = {
+  side: {  // RV visible: short, wide
+    viewBox: '0 0 680 380',
+    y0: 325,            // plot area bottom
+    xTitleY: 362,       // X-axis title baseline
+    yTitleY: 170,       // Y-axis title rotation centre
+  },
+  alone: { // RV hidden: 1:1 square
+    viewBox: '0 0 680 680',
+    y0: 625,
+    xTitleY: 662,
+    yTitleY: 320,
+  },
+};
+
+function setLVGeometry(modeKey) {
+  const g = LV_GEOMETRY[modeKey];
+  svgLV.setAttribute('viewBox', g.viewBox);
+  svgLV.querySelector('.ax-line-x').setAttribute('y1', g.y0);
+  svgLV.querySelector('.ax-line-x').setAttribute('y2', g.y0);
+  svgLV.querySelector('.ax-line-y').setAttribute('y1', g.y0);
+  // Y-axis line's y2 stays at axis top (15) -- unchanged.
+  svgLV.querySelector('.ax-title-x').setAttribute('y', g.xTitleY);
+  const yTitle = svgLV.querySelector('.ax-title-y');
+  yTitle.setAttribute('y', g.yTitleY);
+  yTitle.setAttribute('transform', 'rotate(-90 35 ' + g.yTitleY + ')');
+  CONFIG.lv.axes.y0 = g.y0;
+  scalesLV = makeScales(CONFIG.lv.axes);
+  drawAxes(svgLV, CONFIG.lv.axes, scalesLV);
+}
 
 const svgRV    = document.querySelector('.rv-wrap svg');
 const scalesRV = makeScales(CONFIG.rv.axes);
@@ -555,6 +593,11 @@ function setRVVisible(on) {
   rvVisible = on;
   appEl.classList.toggle('rv-off', !on);
   rvToggleBtn.innerHTML = '<span class="dot"></span> RV loop · ' + (on ? 'on' : 'off');
+  // Reshape the LV: short rectangle when sharing the row with the RV,
+  // square when alone (more vertical room for the loop -- the teaching
+  // shape).
+  setLVGeometry(on ? 'side' : 'alone');
+  update();
 }
 rvToggleBtn.addEventListener('click', () => setRVVisible(!rvVisible));
 
