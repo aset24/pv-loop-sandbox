@@ -296,12 +296,20 @@ function updateSliderValues(state) {
 }
 
 function updateMetrics(d) {
+  // Clinical BP readout. Systolic = peak LV pressure during ejection
+  // (close enough to peak aortic for a teaching tool). Diastolic =
+  // AVO, the aortic-valve-opening pressure that the afterload slider
+  // sets directly. MAP uses the standard (2*dia + sys)/3 formula.
+  const sys = Math.round(d.peak);
+  const dia = Math.round(d.AVO);
+  const map = Math.round((2 * dia + sys) / 3);
   document.getElementById('metrics').innerHTML =
-    '<span class="metric"><span class="metric-label">ESV</span><span class="metric-value">'    + d.ESV.toFixed(1)   + ' mL</span></span>'
-  + '<span class="metric"><span class="metric-label">SV</span><span class="metric-value">'     + d.SV.toFixed(1)    + ' mL</span></span>'
-  + '<span class="metric"><span class="metric-label">EF</span><span class="metric-value">'     + d.EF               + '%</span></span>'
-  + '<span class="metric"><span class="metric-label">Peak P</span><span class="metric-value">' + Math.round(d.peak) + ' mmHg</span></span>'
-  + '<span class="metric"><span class="metric-label">EDP</span><span class="metric-value">'    + d.EDP.toFixed(1)   + ' mmHg</span></span>';
+    '<span class="metric"><span class="metric-label">ESV</span><span class="metric-value">' + d.ESV.toFixed(1) + ' mL</span></span>'
+  + '<span class="metric"><span class="metric-label">SV</span><span class="metric-value">'  + d.SV.toFixed(1)  + ' mL</span></span>'
+  + '<span class="metric"><span class="metric-label">EF</span><span class="metric-value">'  + d.EF             + '%</span></span>'
+  + '<span class="metric"><span class="metric-label">BP</span><span class="metric-value">'  + sys + '/' + dia  + ' mmHg</span></span>'
+  + '<span class="metric"><span class="metric-label">MAP</span><span class="metric-value">' + map              + ' mmHg</span></span>'
+  + '<span class="metric"><span class="metric-label">EDP</span><span class="metric-value">' + d.EDP.toFixed(1) + ' mmHg</span></span>';
 }
 
 const svgEl = document.querySelector('.svg-wrap svg');
