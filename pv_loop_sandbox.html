@@ -28,17 +28,21 @@ body{
 .ax-title{font-size:14px;font-weight:500;fill:var(--color-text-primary);font-family:inherit}
 .svg-wrap{width:100%;aspect-ratio:680/470}
 .svg-wrap svg{width:100%;height:100%;display:block}
+.panel-title{font-size:14px;font-weight:600;color:var(--color-text-primary);margin:0 0 4px 4px}
+.panel-title .panel-sub{font-weight:400;color:var(--color-text-secondary);margin-left:6px}
 .app{display:grid;gap:18px;max-width:1600px;margin:0 auto}
 .controls-col{display:flex;flex-direction:column}
+.lv-wrap,.rv-wrap{display:block}
 #metrics{display:flex;flex-wrap:wrap;gap:8px}
 @media (min-width:1100px){
   .app{
     grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);
-    grid-template-areas:"plot controls" "metrics controls";
+    grid-template-areas:"lv controls" "rv controls" "metrics controls";
     column-gap:28px;
     row-gap:18px;
   }
-  .svg-wrap{grid-area:plot}
+  .lv-wrap{grid-area:lv}
+  .rv-wrap{grid-area:rv}
   .controls-col{grid-area:controls;align-self:start}
   #metrics{grid-area:metrics}
 }
@@ -64,16 +68,17 @@ body{
 </head>
 <body>
 <div class="app">
-<div class="svg-wrap">
+<div class="svg-wrap lv-wrap">
+<div class="panel-title">Left ventricle <span class="panel-sub">— systemic circulation</span></div>
 <svg viewBox="0 0 680 470" role="img" preserveAspectRatio="xMidYMid meet">
-<title>Pressure-volume loop sandbox with four levers</title>
-<desc>Interactive PV loop where preload, afterload, contractility, and ventricular stiffness vary independently. Preload and afterload reposition the loop within the envelope; contractility and stiffness move the boundaries (ESPVR and EDPVR).</desc>
+<title>Left ventricle pressure-volume loop</title>
+<desc>Interactive LV PV loop where preload, afterload, contractility, and ventricular stiffness vary independently.</desc>
 <defs>
-<marker id="ax-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
+<marker id="ax-arrow-lv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
 </defs>
 
-<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow)"/>
-<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow)"/>
+<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
+<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
 
 <g class="axis-ticks"></g>
 
@@ -87,6 +92,34 @@ body{
 <text class="lab-edpvr th" fill="#1D9E75">EDPVR</text>
 <path class="loop-fill" fill="#378ADD" opacity="0.15" d=""/>
 <path class="loop" fill="none" stroke="#378ADD" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" d=""/>
+</g>
+</svg>
+</div>
+
+<div class="svg-wrap rv-wrap">
+<div class="panel-title">Right ventricle <span class="panel-sub">— pulmonary circulation</span></div>
+<svg viewBox="0 0 680 470" role="img" preserveAspectRatio="xMidYMid meet">
+<title>Right ventricle pressure-volume loop</title>
+<desc>Interactive RV PV loop. RV preload is tied to LV preload (shared venous return), RV contractility scales with LV contractility, and the pulmonary pressure slider sets the RV afterload.</desc>
+<defs>
+<marker id="ax-arrow-rv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
+</defs>
+
+<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
+<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
+
+<g class="axis-ticks"></g>
+
+<text class="ax-title" x="35" y="215" text-anchor="middle" transform="rotate(-90 35 215)">RV pressure (mmHg)</text>
+<text class="ax-title" x="362" y="448" text-anchor="middle">RV volume (mL)</text>
+
+<g class="loop-g">
+<path class="edpvr" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5 4" d=""/>
+<line class="espvr" stroke="#D85A30" stroke-width="1.5" stroke-dasharray="5 4" x1="0" y1="0" x2="0" y2="0"/>
+<text class="lab-espvr th" fill="#D85A30">ESPVR</text>
+<text class="lab-edpvr th" fill="#1D9E75">EDPVR</text>
+<path class="loop-fill" fill="#3FA88A" opacity="0.15" d=""/>
+<path class="loop" fill="none" stroke="#3FA88A" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" d=""/>
 </g>
 </svg>
 </div>
@@ -139,7 +172,29 @@ const CONFIG = {
                                // extreme contractility (axis is 0-100)
     },
   },
-  // CONFIG.rv added in the next commit when the RV panel goes in.
+  rv: {
+    axes: {
+      Vmin: 0, Vmax: 15,
+      Pmin: 0, Pmax: 60,
+      x0: 100, x1: 625,
+      y0: 410, y1: 20,
+      vTicks: [0, 3, 6, 9, 12, 15],
+      pTicks: [0, 15, 30, 45, 60],
+    },
+    model: {
+      V0: -1,                  // less negative than LV -- RV chamber sits a
+                               // bit higher on the volume axis at zero pressure
+      pedV_a: 0.18,
+      pedV_b: 0.65,
+      pedV_thresh: 2,
+      AVO_to_AVC_ratio: 1.20,  // RV outflow has slightly more decay between
+                               // peak and valve closure than LV does
+      SV_min: 0.2,
+      ESV_min: 0.3,
+      peak_min_above_AVC: 3,
+      peak_max: 57,            // visual cap inside the 0-60 RV pressure axis
+    },
+  },
 };
 
 // --- Pure functions (no DOM) ----------------------------------------------
@@ -339,19 +394,41 @@ function updateMetrics(d, state) {
   ].join('');
 }
 
-const svgLV    = document.querySelector('.svg-wrap svg');
+const svgLV    = document.querySelector('.lv-wrap svg');
 const scalesLV = makeScales(CONFIG.lv.axes);
 drawAxes(svgLV, CONFIG.lv.axes, scalesLV);
 const lvGroup  = svgLV.querySelector('.loop-g');
 
+const svgRV    = document.querySelector('.rv-wrap svg');
+const scalesRV = makeScales(CONFIG.rv.axes);
+drawAxes(svgRV, CONFIG.rv.axes, scalesRV);
+const rvGroup  = svgRV.querySelector('.loop-g');
+
+// Coupling constants between LV and RV state. Conscious teaching choice:
+// RV is derived from LV rather than independently controlled. Lets PPHN
+// (raise PA pressure) and the response to the four LV levers be taught
+// without doubling the slider count. Decoupling for niche cases (RV-
+// specific cardiomyopathy) is a one-line change here.
+const RV_E_FRACTION       = 0.5;  // RV contractility = 0.5 * LV contractility
+const PA_PRESSURE_DEFAULT = 20;   // mmHg -- becomes a slider in the next commit
+
 function update() {
   const state = readState();
   updateSliderValues(state);
-  // renderLoop only needs the four LV levers; HR and weight don't enter
-  // the loop geometry, they're metric-side only.
+  // LV loop -- HR and weight don't enter the loop geometry, they're
+  // metric-side only.
   const dLV = renderLoop(
     { preload: state.preload, afterload: state.afterload, E: state.E, k: state.k },
     CONFIG.lv.axes, scalesLV, CONFIG.lv.model, lvGroup
+  );
+  // RV loop -- shared venous return (preload), reduced contractility,
+  // shared stiffness, pulmonary pressure as afterload.
+  const dRV = renderLoop(
+    { preload: state.preload,
+      afterload: PA_PRESSURE_DEFAULT,
+      E: state.E * RV_E_FRACTION,
+      k: state.k },
+    CONFIG.rv.axes, scalesRV, CONFIG.rv.model, rvGroup
   );
   updateMetrics(dLV, state);
 }
