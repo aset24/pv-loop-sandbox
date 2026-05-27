@@ -40,8 +40,14 @@ body{
 .app.rv-off .rv-wrap{display:none}
 .app.rv-off .rv-metric{display:none}
 .app.rv-off .sr-pa{display:none}
+/* RV-off: full width of .app, no inset.  Also force a coloured border so
+   you can tell at a glance whether you're seeing the latest CSS or a
+   cached version -- if the chart has a thin blue dashed outline, the new
+   CSS is live; if not, the browser is showing stale CSS and you need
+   ⌘⇧R to hard refresh. */
 @media (min-width:720px){
-  .app.rv-off .plot-row{grid-template-columns:1fr;max-width:1550px;margin:0 auto}
+  .app.rv-off .plot-row{grid-template-columns:1fr}
+  .app.rv-off .lv-wrap{outline:2px dashed #378ADD;outline-offset:4px}
 }
 .view-toggle{margin-bottom:6px}
 .rv-toggle{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;font-size:14px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2}
