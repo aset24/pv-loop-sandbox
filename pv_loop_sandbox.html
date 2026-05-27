@@ -132,6 +132,7 @@ body{
 <div class="sr b"><label>Contractility</label><input type="range" id="contract" min="3" max="20" value="10" step="0.5"/><span class="v" id="contract-v">10.0</span></div>
 <div class="sr b"><label>Ventricular stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
 <div class="sr"><label>Heart rate</label><input type="range" id="hr" min="80" max="200" value="140" step="1"/><span class="v" id="hr-v">140 bpm</span></div>
+<div class="sr"><label>PA pressure</label><input type="range" id="pa" min="8" max="70" value="20" step="1"/><span class="v" id="pa-v">20 mmHg</span></div>
 <div class="note">Preload and afterload reposition the loop within the envelope. Contractility and ventricular stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
 <div class="help"><span class="kbd">1</span>–<span class="kbd">9</span> jump to a preset · <span class="kbd">←</span> <span class="kbd">→</span> nudge the slider you last touched</div>
 </div>
@@ -327,20 +328,20 @@ function renderLoop(state, axes, scales, model, group) {
 // presenter can fine-tune them mid-talk with arrow keys; weight is a
 // patient parameter (changes infrequently) but still a slider for the
 // "what if this were a 1 kg baby?" demonstration.
-const SLIDERS = ['preload', 'afterload', 'contract', 'stiff', 'hr', 'weight'];
+const SLIDERS = ['preload', 'afterload', 'contract', 'stiff', 'hr', 'weight', 'pa'];
 
 // Clinical presets. The label is what appears on the button; the slider
 // values are the four model inputs. Keys 1..9 map onto array positions.
 const PRESETS = [
-  { label: 'Normal',          preload: 6,  afterload: 35, E: 10, k: 1.0 },
-  { label: 'Hypovolaemia',    preload: 3,  afterload: 30, E: 10, k: 1.0 },
-  { label: 'PPHN',            preload: 4,  afterload: 30, E: 9,  k: 1.0 },
-  { label: 'AVM (high output)', preload: 10, afterload: 22, E: 8, k: 1.0 },
-  { label: 'Vasoplegia',      preload: 6,  afterload: 22, E: 10, k: 1.0 },
-  { label: 'Closing PDA',     preload: 6,  afterload: 50, E: 10, k: 1.0 },
-  { label: 'Inotropic support', preload: 5, afterload: 32, E: 15, k: 1.0 },
-  { label: 'Volume overload', preload: 10, afterload: 35, E: 10, k: 1.0 },
-  { label: 'Diastolic dysfn', preload: 7,  afterload: 35, E: 10, k: 2.5 },
+  { label: 'Normal',          preload: 6,  afterload: 35, E: 10, k: 1.0, pa: 20 },
+  { label: 'Hypovolaemia',    preload: 3,  afterload: 30, E: 10, k: 1.0, pa: 18 },
+  { label: 'PPHN',            preload: 4,  afterload: 30, E: 9,  k: 1.0, pa: 55 },
+  { label: 'AVM (high output)', preload: 10, afterload: 22, E: 8, k: 1.0, pa: 28 },
+  { label: 'Vasoplegia',      preload: 6,  afterload: 22, E: 10, k: 1.0, pa: 20 },
+  { label: 'Closing PDA',     preload: 6,  afterload: 50, E: 10, k: 1.0, pa: 20 },
+  { label: 'Inotropic support', preload: 5, afterload: 32, E: 15, k: 1.0, pa: 20 },
+  { label: 'Volume overload', preload: 10, afterload: 35, E: 10, k: 1.0, pa: 25 },
+  { label: 'Diastolic dysfn', preload: 7,  afterload: 35, E: 10, k: 2.5, pa: 22 },
 ];
 
 function readState() {
@@ -351,6 +352,7 @@ function readState() {
     k:         +document.getElementById('stiff').value,
     hr:        +document.getElementById('hr').value,
     weight:    +document.getElementById('weight').value,
+    pa:        +document.getElementById('pa').value,
   };
 }
 
@@ -361,6 +363,7 @@ function updateSliderValues(state) {
   document.getElementById('stiff-v').textContent     = state.k.toFixed(1) + '×';
   document.getElementById('hr-v').textContent        = Math.round(state.hr) + ' bpm';
   document.getElementById('weight-v').textContent    = state.weight.toFixed(1) + ' kg';
+  document.getElementById('pa-v').textContent        = Math.round(state.pa) + ' mmHg';
 }
 
 function chip(label, value) {
@@ -368,29 +371,32 @@ function chip(label, value) {
        + '</span><span class="metric-value">' + value + '</span></span>';
 }
 
-function updateMetrics(d, state) {
-  // Clinical BP readout. Systolic = peak LV pressure during ejection
-  // (close enough to peak aortic for a teaching tool). Diastolic =
-  // AVO, the aortic-valve-opening pressure that the afterload slider
-  // sets directly. MAP uses the standard (2*dia + sys)/3 formula.
-  const sys = Math.round(d.peak);
-  const dia = Math.round(d.AVO);
+function updateMetrics(dLV, dRV, state) {
+  // LV side ---------------------------------------------------------
+  const sys = Math.round(dLV.peak);
+  const dia = Math.round(dLV.AVO);
   const map = Math.round((2 * dia + sys) / 3);
   // CO = SV * HR  (SV in mL, HR in /min  ->  CO in mL/min directly).
   // Indexed per kg is how the neonatology bedside actually quotes it.
-  const co       = Math.round(d.SV * state.hr);
+  const co       = Math.round(dLV.SV * state.hr);
   const co_kg    = Math.round(co / state.weight);
-  const sv_kg    = (d.SV / state.weight).toFixed(1);
+  const sv_kg    = (dLV.SV / state.weight).toFixed(1);
+  // RV side ---------------------------------------------------------
+  const pa_sys = Math.round(dRV.peak);
+  const pa_dia = Math.round(dRV.AVO);
   document.getElementById('metrics').innerHTML = [
-    chip('ESV',   d.ESV.toFixed(1) + ' mL'),
-    chip('SV',    d.SV.toFixed(1)  + ' mL'),
-    chip('SV/kg', sv_kg            + ' mL/kg'),
-    chip('EF',    d.EF             + '%'),
-    chip('BP',    sys + '/' + dia  + ' mmHg'),
-    chip('MAP',   map              + ' mmHg'),
-    chip('CO',    co               + ' mL/min'),
-    chip('CO/kg', co_kg            + ' mL/kg/min'),
-    chip('EDP',   d.EDP.toFixed(1) + ' mmHg'),
+    chip('ESV',    dLV.ESV.toFixed(1) + ' mL'),
+    chip('SV',     dLV.SV.toFixed(1)  + ' mL'),
+    chip('SV/kg',  sv_kg              + ' mL/kg'),
+    chip('EF',     dLV.EF             + '%'),
+    chip('BP',     sys + '/' + dia    + ' mmHg'),
+    chip('MAP',    map                + ' mmHg'),
+    chip('CO',     co                 + ' mL/min'),
+    chip('CO/kg',  co_kg              + ' mL/kg/min'),
+    chip('EDP',    dLV.EDP.toFixed(1) + ' mmHg'),
+    chip('RV SV',  dRV.SV.toFixed(1)  + ' mL'),
+    chip('PA',     pa_sys + '/' + pa_dia + ' mmHg'),
+    chip('RV EDP', dRV.EDP.toFixed(1) + ' mmHg'),
   ].join('');
 }
 
@@ -409,8 +415,7 @@ const rvGroup  = svgRV.querySelector('.loop-g');
 // (raise PA pressure) and the response to the four LV levers be taught
 // without doubling the slider count. Decoupling for niche cases (RV-
 // specific cardiomyopathy) is a one-line change here.
-const RV_E_FRACTION       = 0.5;  // RV contractility = 0.5 * LV contractility
-const PA_PRESSURE_DEFAULT = 20;   // mmHg -- becomes a slider in the next commit
+const RV_E_FRACTION = 0.5;  // RV contractility = 0.5 * LV contractility
 
 function update() {
   const state = readState();
@@ -422,15 +427,15 @@ function update() {
     CONFIG.lv.axes, scalesLV, CONFIG.lv.model, lvGroup
   );
   // RV loop -- shared venous return (preload), reduced contractility,
-  // shared stiffness, pulmonary pressure as afterload.
+  // shared stiffness, PA pressure as afterload.
   const dRV = renderLoop(
     { preload: state.preload,
-      afterload: PA_PRESSURE_DEFAULT,
+      afterload: state.pa,
       E: state.E * RV_E_FRACTION,
       k: state.k },
     CONFIG.rv.axes, scalesRV, CONFIG.rv.model, rvGroup
   );
-  updateMetrics(dLV, state);
+  updateMetrics(dLV, dRV, state);
 }
 
 // Build preset buttons. Done in JS rather than markup so that adding/
@@ -449,6 +454,7 @@ function applyPreset(i) {
   document.getElementById('afterload').value = p.afterload;
   document.getElementById('contract').value  = p.E;
   document.getElementById('stiff').value     = p.k;
+  document.getElementById('pa').value        = p.pa;
   update();
   // Visual: highlight the active preset button. Cleared when the user
   // touches any slider (they've now diverged from the preset).
