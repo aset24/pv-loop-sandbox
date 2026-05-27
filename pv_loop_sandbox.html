@@ -108,35 +108,38 @@ body{
 
 <script>
 // --- Configuration ---------------------------------------------------------
-// All axis ranges, slider ranges, and physiological parameters live here.
-// Switching to an adult version (or a different chamber) only needs CONFIG
-// edits, not changes to render code. This is also the hook for a future
-// neonatal/adult toggle.
+// All axis ranges and physiological parameters live here, organised per
+// chamber. Adding the RV (or an adult version, or any other chamber) is
+// a config addition rather than a code change -- the render functions
+// already take axes/model as parameters.
 const CONFIG = {
-  axes: {
-    Vmin: 0, Vmax: 15,
-    Pmin: 0, Pmax: 100,
-    // SVG plot area (left/right of X axis, bottom/top of Y axis)
-    x0: 100, x1: 625,
-    y0: 410, y1: 20,
-    vTicks: [0, 3, 6, 9, 12, 15],
-    pTicks: [0, 20, 40, 60, 80, 100],
+  lv: {
+    axes: {
+      Vmin: 0, Vmax: 15,
+      Pmin: 0, Pmax: 100,
+      // SVG plot area (left/right of X axis, bottom/top of Y axis)
+      x0: 100, x1: 625,
+      y0: 410, y1: 20,
+      vTicks: [0, 3, 6, 9, 12, 15],
+      pTicks: [0, 20, 40, 60, 80, 100],
+    },
+    model: {
+      V0: -2,                  // ESPVR volume-axis intercept (mL). Negative is
+                               // fine -- it's the linear extrapolation, not the
+                               // true unstressed volume. Tuned so the Normal
+                               // preset gives EF ~65%.
+      pedV_a: 0.20,            // EDPVR quadratic coefficient
+      pedV_b: 0.70,            // EDPVR linear coefficient
+      pedV_thresh: 2,          // EDP = 0 for V <= this (mL)
+      AVO_to_AVC_ratio: 1.15,  // aortic valve close / open pressure ratio
+      SV_min: 0.2,             // minimum stroke volume clamp (mL)
+      ESV_min: 0.3,            // minimum end-systolic volume (mL)
+      peak_min_above_AVC: 3,   // visual minimum pulse pressure (mmHg)
+      peak_max: 95,            // visual cap so loops stay inside axis at
+                               // extreme contractility (axis is 0-100)
+    },
   },
-  model: {
-    V0: -2,                  // ESPVR volume-axis intercept (mL). Negative is
-                             // fine -- it's the linear extrapolation, not the
-                             // true unstressed volume. Tuned so the Normal
-                             // preset gives EF ~65%.
-    pedV_a: 0.20,            // EDPVR quadratic coefficient
-    pedV_b: 0.70,            // EDPVR linear coefficient
-    pedV_thresh: 2,          // EDP = 0 for V <= this (mL)
-    AVO_to_AVC_ratio: 1.15,  // aortic valve close / open pressure ratio
-    SV_min: 0.2,             // minimum stroke volume clamp (mL)
-    ESV_min: 0.3,            // minimum end-systolic volume (mL)
-    peak_min_above_AVC: 3,   // visual minimum pulse pressure (mmHg)
-    peak_max: 95,            // visual cap so loops stay inside axis at
-                             // extreme contractility (axis is 0-100)
-  },
+  // CONFIG.rv added in the next commit when the RV panel goes in.
 };
 
 // --- Pure functions (no DOM) ----------------------------------------------
@@ -336,21 +339,21 @@ function updateMetrics(d, state) {
   ].join('');
 }
 
-const svgEl = document.querySelector('.svg-wrap svg');
-const scales = makeScales(CONFIG.axes);
-drawAxes(svgEl, CONFIG.axes, scales);
-const loopGroup = svgEl.querySelector('.loop-g');
+const svgLV    = document.querySelector('.svg-wrap svg');
+const scalesLV = makeScales(CONFIG.lv.axes);
+drawAxes(svgLV, CONFIG.lv.axes, scalesLV);
+const lvGroup  = svgLV.querySelector('.loop-g');
 
 function update() {
   const state = readState();
   updateSliderValues(state);
   // renderLoop only needs the four LV levers; HR and weight don't enter
   // the loop geometry, they're metric-side only.
-  const d = renderLoop(
+  const dLV = renderLoop(
     { preload: state.preload, afterload: state.afterload, E: state.E, k: state.k },
-    CONFIG.axes, scales, CONFIG.model, loopGroup
+    CONFIG.lv.axes, scalesLV, CONFIG.lv.model, lvGroup
   );
-  updateMetrics(d, state);
+  updateMetrics(dLV, state);
 }
 
 // Build preset buttons. Done in JS rather than markup so that adding/
