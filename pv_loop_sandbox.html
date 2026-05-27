@@ -87,7 +87,7 @@ body{
 <div class="app">
 <div class="plot-row">
 <div class="svg-wrap lv-wrap">
-<div class="panel-title"><span class="panel-label">Left ventricle <span class="panel-sub">— systemic circulation</span></span><span class="kpi kpi-bp"></span><span class="kpi kpi-co"></span></div>
+<div class="panel-title"><span class="panel-label">Left ventricle <span class="panel-sub">— systemic circulation</span></span><span class="kpi kpi-bp"></span><span class="kpi kpi-map"></span><span class="kpi kpi-co"></span></div>
 <svg viewBox="0 0 680 380" role="img" preserveAspectRatio="xMidYMid meet">
 <title>Left ventricle pressure-volume loop</title>
 <desc>Interactive LV PV loop where preload, afterload, contractility, and ventricular stiffness vary independently.</desc>
@@ -462,8 +462,9 @@ function updateMetrics(dLV, dRV, state) {
   // KPI labels in the LV panel-title bar (right-aligned). Outside the
   // SVG so they can never collide with the loop, the ESPVR line, or
   // the boundary labels. The two numbers a clinician most cares about.
-  document.querySelector('.lv-wrap .kpi-bp').textContent = 'BP ' + sys + '/' + dia + ' mmHg';
-  document.querySelector('.lv-wrap .kpi-co').textContent = 'CO ' + co_kg + ' mL/kg/min';
+  document.querySelector('.lv-wrap .kpi-bp').textContent  = 'BP ' + sys + '/' + dia + ' mmHg';
+  document.querySelector('.lv-wrap .kpi-map').textContent = 'MAP ' + map + ' mmHg';
+  document.querySelector('.lv-wrap .kpi-co').textContent  = 'CO ' + co_kg + ' mL/kg/min';
   // RV side ---------------------------------------------------------
   const pa_sys = Math.round(dRV.peak);
   const pa_dia = Math.round(dRV.AVO);
