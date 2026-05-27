@@ -16,7 +16,7 @@
 }
 html,body{margin:0;padding:0}
 body{
-  padding:18px;
+  padding:14px 18px;
   background:var(--color-background-primary);
   color:var(--color-text-primary);
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
@@ -26,37 +26,32 @@ body{
 .ts{font-size:13px;fill:var(--color-text-secondary);font-family:inherit}
 .th{font-size:14px;font-weight:600;font-family:inherit}
 .ax-title{font-size:14px;font-weight:500;fill:var(--color-text-primary);font-family:inherit}
-.svg-wrap{width:100%;aspect-ratio:680/470}
+.svg-wrap{width:100%;aspect-ratio:680/380}
 .svg-wrap svg{width:100%;height:100%;display:block}
-.panel-title{font-size:14px;font-weight:600;color:var(--color-text-primary);margin:0 0 4px 4px}
+.panel-title{font-size:14px;font-weight:600;color:var(--color-text-primary);margin:0 0 2px 4px}
 .panel-title .panel-sub{font-weight:400;color:var(--color-text-secondary);margin-left:6px}
-.app{display:grid;gap:18px;max-width:1600px;margin:0 auto}
-.controls-col{display:flex;flex-direction:column}
-.lv-wrap,.rv-wrap{display:block}
-#metrics{display:flex;flex-wrap:wrap;gap:8px}
-@media (min-width:1100px){
-  .app{
-    grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);
-    grid-template-areas:"lv controls" "rv controls" "metrics controls";
-    column-gap:28px;
-    row-gap:18px;
-  }
-  .lv-wrap{grid-area:lv}
-  .rv-wrap{grid-area:rv}
-  .controls-col{grid-area:controls;align-self:start}
-  #metrics{grid-area:metrics}
+.app{display:flex;flex-direction:column;gap:12px;max-width:1600px;margin:0 auto}
+.plot-row{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:720px){
+  .plot-row{grid-template-columns:1fr 1fr}
 }
-.sr{display:grid;grid-template-columns:160px 1fr 92px;gap:14px;align-items:center;margin-bottom:10px}
+.controls-col{display:flex;flex-direction:column;gap:6px}
+.control-rows{display:grid;grid-template-columns:1fr;column-gap:24px}
+@media (min-width:760px){
+  .control-rows{grid-template-columns:1fr 1fr}
+}
+#metrics{display:flex;flex-wrap:wrap;gap:6px}
+.sr{display:grid;grid-template-columns:140px 1fr 88px;gap:12px;align-items:center;margin-bottom:5px}
 .sr label{font-size:14px;color:var(--color-text-secondary)}
 .sr .v{font-size:15px;font-weight:600;text-align:right;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
 .sr.b label{color:var(--color-text-primary);font-weight:500}
 .sr.b label::after{content:' ↓'}
 .note{margin-top:8px;font-size:13px;color:var(--color-text-tertiary);font-style:italic;line-height:1.5}
-.metric{display:inline-flex;align-items:baseline;gap:7px;padding:7px 12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:14px}
+.metric{display:inline-flex;align-items:baseline;gap:6px;padding:5px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:14px}
 .metric-label{color:var(--color-text-secondary);font-size:13px}
 .metric-value{font-weight:600;font-variant-numeric:tabular-nums}
-.presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
-.preset{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;font-size:15px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2;white-space:nowrap}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.preset{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;font-size:14px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2;white-space:nowrap}
 .preset:hover{background:var(--color-background-tertiary)}
 .preset.active{background:#378ADD;color:#fff;border-color:#2c6ec0}
 .preset .kbd{display:inline-block;min-width:18px;padding:1px 5px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:center;background:var(--color-background-primary);color:var(--color-text-secondary);border-radius:3px}
@@ -68,22 +63,23 @@ body{
 </head>
 <body>
 <div class="app">
+<div class="plot-row">
 <div class="svg-wrap lv-wrap">
 <div class="panel-title">Left ventricle <span class="panel-sub">— systemic circulation</span></div>
-<svg viewBox="0 0 680 470" role="img" preserveAspectRatio="xMidYMid meet">
+<svg viewBox="0 0 680 380" role="img" preserveAspectRatio="xMidYMid meet">
 <title>Left ventricle pressure-volume loop</title>
 <desc>Interactive LV PV loop where preload, afterload, contractility, and ventricular stiffness vary independently.</desc>
 <defs>
 <marker id="ax-arrow-lv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
 </defs>
 
-<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
-<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
+<line x1="100" y1="325" x2="625" y2="325" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
+<line x1="100" y1="325" x2="100" y2="15" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-lv)"/>
 
 <g class="axis-ticks"></g>
 
-<text class="ax-title" x="35" y="215" text-anchor="middle" transform="rotate(-90 35 215)">LV pressure (mmHg)</text>
-<text class="ax-title" x="362" y="448" text-anchor="middle">LV volume (mL)</text>
+<text class="ax-title" x="35" y="170" text-anchor="middle" transform="rotate(-90 35 170)">LV pressure (mmHg)</text>
+<text class="ax-title" x="362" y="362" text-anchor="middle">LV volume (mL)</text>
 
 <g class="loop-g">
 <path class="edpvr" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5 4" d=""/>
@@ -98,20 +94,20 @@ body{
 
 <div class="svg-wrap rv-wrap">
 <div class="panel-title">Right ventricle <span class="panel-sub">— pulmonary circulation</span></div>
-<svg viewBox="0 0 680 470" role="img" preserveAspectRatio="xMidYMid meet">
+<svg viewBox="0 0 680 380" role="img" preserveAspectRatio="xMidYMid meet">
 <title>Right ventricle pressure-volume loop</title>
 <desc>Interactive RV PV loop. RV preload is tied to LV preload (shared venous return), RV contractility scales with LV contractility, and the pulmonary pressure slider sets the RV afterload.</desc>
 <defs>
 <marker id="ax-arrow-rv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
 </defs>
 
-<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
-<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
+<line x1="100" y1="325" x2="625" y2="325" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
+<line x1="100" y1="325" x2="100" y2="15" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow-rv)"/>
 
 <g class="axis-ticks"></g>
 
-<text class="ax-title" x="35" y="215" text-anchor="middle" transform="rotate(-90 35 215)">RV pressure (mmHg)</text>
-<text class="ax-title" x="362" y="448" text-anchor="middle">RV volume (mL)</text>
+<text class="ax-title" x="35" y="170" text-anchor="middle" transform="rotate(-90 35 170)">RV pressure (mmHg)</text>
+<text class="ax-title" x="362" y="362" text-anchor="middle">RV volume (mL)</text>
 
 <g class="loop-g">
 <path class="edpvr" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="5 4" d=""/>
@@ -123,17 +119,23 @@ body{
 </g>
 </svg>
 </div>
+</div>
 
 <div class="controls-col">
-<div class="sr"><label>Body weight</label><input type="range" id="weight" min="0.5" max="5" value="3" step="0.1"/><span class="v" id="weight-v">3.0 kg</span></div>
 <div class="presets" id="presets"></div>
+<div class="control-rows">
+<div class="control-col">
 <div class="sr"><label>Preload</label><input type="range" id="preload" min="2" max="12" value="6" step="0.2"/><span class="v" id="preload-v">6.0 mL</span></div>
 <div class="sr"><label>Afterload</label><input type="range" id="afterload" min="15" max="70" value="35" step="1"/><span class="v" id="afterload-v">35 mmHg</span></div>
 <div class="sr b"><label>Contractility</label><input type="range" id="contract" min="3" max="20" value="10" step="0.5"/><span class="v" id="contract-v">10.0</span></div>
-<div class="sr b"><label>Ventricular stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
+<div class="sr b"><label>Stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
+</div>
+<div class="control-col">
+<div class="sr"><label>Body weight</label><input type="range" id="weight" min="0.5" max="5" value="3" step="0.1"/><span class="v" id="weight-v">3.0 kg</span></div>
 <div class="sr"><label>Heart rate</label><input type="range" id="hr" min="80" max="200" value="140" step="1"/><span class="v" id="hr-v">140 bpm</span></div>
 <div class="sr"><label>PA pressure</label><input type="range" id="pa" min="8" max="70" value="20" step="1"/><span class="v" id="pa-v">20 mmHg</span></div>
-<div class="note">Preload and afterload reposition the loop within the envelope. Contractility and ventricular stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
+</div>
+</div>
 <div class="help"><span class="kbd">1</span>–<span class="kbd">9</span> jump to a preset · <span class="kbd">←</span> <span class="kbd">→</span> nudge the slider you last touched</div>
 </div>
 
@@ -151,9 +153,10 @@ const CONFIG = {
     axes: {
       Vmin: 0, Vmax: 15,
       Pmin: 0, Pmax: 100,
-      // SVG plot area (left/right of X axis, bottom/top of Y axis)
+      // SVG plot area (left/right of X axis, bottom/top of Y axis).
+      // viewBox is 0 0 680 380 so y0/y1 are inside that box.
       x0: 100, x1: 625,
-      y0: 410, y1: 20,
+      y0: 325, y1: 15,
       vTicks: [0, 3, 6, 9, 12, 15],
       pTicks: [0, 20, 40, 60, 80, 100],
     },
@@ -178,7 +181,7 @@ const CONFIG = {
       Vmin: 0, Vmax: 15,
       Pmin: 0, Pmax: 60,
       x0: 100, x1: 625,
-      y0: 410, y1: 20,
+      y0: 325, y1: 15,
       vTicks: [0, 3, 6, 9, 12, 15],
       pTicks: [0, 15, 30, 45, 60],
     },
@@ -290,7 +293,12 @@ function renderLoop(state, axes, scales, model, group) {
   group.querySelector('.edpvr').setAttribute('d', edpD);
   const labD = group.querySelector('.lab-edpvr');
   labD.setAttribute('x', xs(axes.Vmax) - 38);
-  labD.setAttribute('y', ys(pedV(axes.Vmax, state.k)) - 6);
+  // Clamp the EDPVR label inside the visible plot area so it doesn't
+  // float off the top at high stiffness (k=2.5+, the curve can exit
+  // through the pressure-axis maximum).
+  const labD_y_raw = ys(pedV(axes.Vmax, state.k)) - 6;
+  const labD_y_min = axes.y1 + 14;  // 14 px below the top edge
+  labD.setAttribute('y', Math.max(labD_y_min, labD_y_raw));
 
   // Loop construction. Four phases:
   //   D -> A   filling, traces the EDPVR curve from ESV up to EDV
