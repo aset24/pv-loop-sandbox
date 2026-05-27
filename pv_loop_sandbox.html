@@ -1,4 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PV loop sandbox (neonatal)</title>
 <style>
+:root{
+  --color-text-primary:#0d1117;
+  --color-text-secondary:#4a5563;
+  --color-text-tertiary:#6b7280;
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f1f3f5;
+  --border-radius-md:6px;
+}
+html,body{margin:0;padding:0}
+body{
+  padding:18px;
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+}
+.ts{font-size:13px;fill:var(--color-text-secondary);font-family:inherit}
+.th{font-size:14px;font-weight:600;font-family:inherit}
+.svg-wrap{width:100%;aspect-ratio:680/470}
+.svg-wrap svg{width:100%;height:100%;display:block}
 .sr{display:grid;grid-template-columns:140px 1fr 80px;gap:14px;align-items:center;margin-bottom:8px}
 .sr label{font-size:13px;color:var(--color-text-secondary)}
 .sr .v{font-size:13px;font-weight:500;text-align:right;color:var(--color-text-primary)}
@@ -9,9 +36,12 @@
 .metric-label{color:var(--color-text-secondary);font-size:12px}
 .metric-value{font-weight:500}
 </style>
-<svg width="100%" viewBox="0 0 680 470" role="img">
-<title>PV loop sandbox with four levers</title>
-<desc>Interactive PV loop where preload, afterload, contractility, and stiffness vary independently. Preload and afterload reposition the loop within the envelope; contractility and stiffness move the boundaries (ESPVR and EDPVR).</desc>
+</head>
+<body>
+<div class="svg-wrap">
+<svg viewBox="0 0 680 470" role="img" preserveAspectRatio="xMidYMid meet">
+<title>Pressure-volume loop sandbox with four levers</title>
+<desc>Interactive PV loop where preload, afterload, contractility, and ventricular stiffness vary independently. Preload and afterload reposition the loop within the envelope; contractility and stiffness move the boundaries (ESPVR and EDPVR).</desc>
 <defs>
 <marker id="ax-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
 </defs>
@@ -52,13 +82,14 @@
 <path id="loop-fill" fill="#378ADD" opacity="0.15" d=""/>
 <path id="loop" fill="none" stroke="#378ADD" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" d=""/>
 </svg>
+</div>
 
 <div style="margin-top:14px">
 <div class="sr"><label>Preload</label><input type="range" id="preload" min="40" max="200" value="120" step="2"/><span class="v" id="preload-v">120 mL</span></div>
 <div class="sr"><label>Afterload</label><input type="range" id="afterload" min="40" max="140" value="80" step="2"/><span class="v" id="afterload-v">80 mmHg</span></div>
 <div class="sr b"><label>Contractility</label><input type="range" id="contract" min="0.8" max="4.5" value="2.5" step="0.1"/><span class="v" id="contract-v">2.5</span></div>
-<div class="sr b"><label>Stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
-<div class="note">Preload and afterload reposition the loop within the envelope. Contractility and stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
+<div class="sr b"><label>Ventricular stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
+<div class="note">Preload and afterload reposition the loop within the envelope. Contractility and ventricular stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
 </div>
 
 <div id="metrics" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px"></div>
@@ -137,3 +168,5 @@ document.getElementById('contract').addEventListener('input',update);
 document.getElementById('stiff').addEventListener('input',update);
 update();
 </script>
+</body>
+</html>
