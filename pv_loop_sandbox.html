@@ -1,0 +1,139 @@
+<style>
+.sr{display:grid;grid-template-columns:140px 1fr 80px;gap:14px;align-items:center;margin-bottom:8px}
+.sr label{font-size:13px;color:var(--color-text-secondary)}
+.sr .v{font-size:13px;font-weight:500;text-align:right;color:var(--color-text-primary)}
+.sr.b label{color:var(--color-text-primary);font-weight:500}
+.sr.b label::after{content:' ↓'}
+.note{margin-top:6px;font-size:12px;color:var(--color-text-tertiary);font-style:italic;line-height:1.5}
+.metric{display:inline-flex;align-items:baseline;gap:6px;padding:6px 11px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px}
+.metric-label{color:var(--color-text-secondary);font-size:12px}
+.metric-value{font-weight:500}
+</style>
+<svg width="100%" viewBox="0 0 680 470" role="img">
+<title>PV loop sandbox with four levers</title>
+<desc>Interactive PV loop where preload, afterload, contractility, and stiffness vary independently. Preload and afterload reposition the loop within the envelope; contractility and stiffness move the boundaries (ESPVR and EDPVR).</desc>
+<defs>
+<marker id="ax-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--color-text-secondary)"/></marker>
+</defs>
+
+<line x1="100" y1="410" x2="625" y2="410" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow)"/>
+<line x1="100" y1="410" x2="100" y2="20" stroke="var(--color-text-secondary)" stroke-width="1" marker-end="url(#ax-arrow)"/>
+
+<line x1="100" y1="410" x2="100" y2="415" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="100" y="428" text-anchor="middle">0</text>
+<line x1="225" y1="410" x2="225" y2="415" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="225" y="428" text-anchor="middle">50</text>
+<line x1="350" y1="410" x2="350" y2="415" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="350" y="428" text-anchor="middle">100</text>
+<line x1="475" y1="410" x2="475" y2="415" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="475" y="428" text-anchor="middle">150</text>
+<line x1="600" y1="410" x2="600" y2="415" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="600" y="428" text-anchor="middle">200</text>
+
+<line x1="95" y1="410" x2="100" y2="410" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="90" y="414" text-anchor="end">0</text>
+<line x1="95" y1="330" x2="100" y2="330" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="90" y="334" text-anchor="end">40</text>
+<line x1="95" y1="250" x2="100" y2="250" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="90" y="254" text-anchor="end">80</text>
+<line x1="95" y1="170" x2="100" y2="170" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="90" y="174" text-anchor="end">120</text>
+<line x1="95" y1="90" x2="100" y2="90" stroke="var(--color-text-secondary)" stroke-width=".5"/>
+<text class="ts" x="90" y="94" text-anchor="end">160</text>
+
+<text class="ts" x="75" y="40">LV pressure (mmHg)</text>
+<text class="ts" x="360" y="445" text-anchor="middle">LV volume (mL)</text>
+
+<path id="edpvr" fill="none" stroke="#1D9E75" stroke-width="1.3" stroke-dasharray="5 4" d=""/>
+<line id="espvr" stroke="#D85A30" stroke-width="1.3" stroke-dasharray="5 4" x1="0" y1="0" x2="0" y2="0"/>
+<text id="lab-espvr" class="th" fill="#D85A30">ESPVR</text>
+<text id="lab-edpvr" class="th" fill="#1D9E75">EDPVR</text>
+
+<path id="loop-fill" fill="#378ADD" opacity="0.15" d=""/>
+<path id="loop" fill="none" stroke="#378ADD" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" d=""/>
+</svg>
+
+<div style="margin-top:14px">
+<div class="sr"><label>Preload</label><input type="range" id="preload" min="40" max="200" value="120" step="2"/><span class="v" id="preload-v">120 mL</span></div>
+<div class="sr"><label>Afterload</label><input type="range" id="afterload" min="40" max="140" value="80" step="2"/><span class="v" id="afterload-v">80 mmHg</span></div>
+<div class="sr b"><label>Contractility</label><input type="range" id="contract" min="0.8" max="4.5" value="2.5" step="0.1"/><span class="v" id="contract-v">2.5</span></div>
+<div class="sr b"><label>Stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
+<div class="note">Preload and afterload reposition the loop within the envelope. Contractility and stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
+</div>
+
+<div id="metrics" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px"></div>
+
+<script>
+function pedV(V,k){return V>30?k*(0.0005*(V-30)*(V-30)+0.05*(V-30)):0}
+function xs(V){return 100+V*2.5}
+function ys(P){return 410-Math.min(P,200)*2}
+function update(){
+const preload=+document.getElementById('preload').value;
+const afterload=+document.getElementById('afterload').value;
+const E=+document.getElementById('contract').value;
+const k=+document.getElementById('stiff').value;
+const V0=10;
+const EDV=preload;
+const EDP=pedV(EDV,k);
+const AVO=afterload;
+const AVC=AVO*1.15;
+const Pmax=E*(EDV-V0);
+let ESV=V0+AVC/E;
+if(ESV>=EDV-1)ESV=EDV-1;
+if(ESV<5)ESV=5;
+let peak=Math.min(Pmax,(AVC+Pmax)/2);
+if(peak<AVC+5)peak=AVC+5;
+if(peak>195)peak=195;
+const D_p=pedV(ESV,k);
+
+const Vtop=V0+195/E;
+const Vend=Math.min(Vtop,185);
+const Pend=E*(Vend-V0);
+const e=document.getElementById('espvr');
+e.setAttribute('x1',xs(V0));e.setAttribute('y1',410);
+e.setAttribute('x2',xs(Vend));e.setAttribute('y2',ys(Pend));
+document.getElementById('lab-espvr').setAttribute('x',xs(Vend)+6);
+document.getElementById('lab-espvr').setAttribute('y',ys(Pend)+4);
+
+let edpD='';
+for(let V=0;V<=200;V+=4){edpD+=(V===0?'M':'L')+' '+xs(V).toFixed(1)+' '+ys(pedV(V,k)).toFixed(1)+' '}
+document.getElementById('edpvr').setAttribute('d',edpD);
+document.getElementById('lab-edpvr').setAttribute('x',xs(200)+8);
+document.getElementById('lab-edpvr').setAttribute('y',ys(pedV(200,k))+4);
+
+const xD=xs(ESV),yD=ys(D_p);
+const xA=xs(EDV),yA=ys(EDP);
+const xB=xA,yB=ys(AVO);
+const xC=xD,yC=ys(AVC);
+const yPeak=ys(peak);
+let fill='';
+const N=20;
+for(let i=1;i<=N;i++){
+const V=ESV+(EDV-ESV)*i/N;
+fill+='L '+xs(V).toFixed(1)+' '+ys(pedV(V,k)).toFixed(1)+' ';
+}
+const ec1x=xB+(xC-xB)*0.3,ec1y=yPeak;
+const ec2x=xB+(xC-xB)*0.7,ec2y=yPeak;
+const lp='M '+xD+' '+yD+' '+fill+'L '+xB+' '+yB+' C '+ec1x+' '+ec1y+', '+ec2x+' '+ec2y+', '+xC+' '+yC+' L '+xD+' '+yD+' Z';
+document.getElementById('loop').setAttribute('d',lp);
+document.getElementById('loop-fill').setAttribute('d',lp);
+
+const SV=Math.max(0,EDV-ESV);
+const EF=EDV>0?Math.round(SV/EDV*100):0;
+document.getElementById('preload-v').textContent=preload+' mL';
+document.getElementById('afterload-v').textContent=afterload+' mmHg';
+document.getElementById('contract-v').textContent=E.toFixed(1);
+document.getElementById('stiff-v').textContent=k.toFixed(1)+'×';
+document.getElementById('metrics').innerHTML=
+'<span class="metric"><span class="metric-label">ESV</span><span class="metric-value">'+Math.round(ESV)+' mL</span></span>'+
+'<span class="metric"><span class="metric-label">SV</span><span class="metric-value">'+Math.round(SV)+' mL</span></span>'+
+'<span class="metric"><span class="metric-label">EF</span><span class="metric-value">'+EF+'%</span></span>'+
+'<span class="metric"><span class="metric-label">Peak P</span><span class="metric-value">'+Math.round(peak)+' mmHg</span></span>'+
+'<span class="metric"><span class="metric-label">EDP</span><span class="metric-value">'+EDP.toFixed(1)+' mmHg</span></span>';
+}
+document.getElementById('preload').addEventListener('input',update);
+document.getElementById('afterload').addEventListener('input',update);
+document.getElementById('contract').addEventListener('input',update);
+document.getElementById('stiff').addEventListener('input',update);
+update();
+</script>
