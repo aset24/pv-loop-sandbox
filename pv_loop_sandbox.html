@@ -41,7 +41,7 @@ body{
 .app.rv-off .rv-metric{display:none}
 .app.rv-off .sr-pa{display:none}
 @media (min-width:720px){
-  .app.rv-off .plot-row{grid-template-columns:1fr;max-width:min(90%,1400px);margin:0 auto}
+  .app.rv-off .plot-row{grid-template-columns:1fr}
 }
 .view-toggle{margin-bottom:6px}
 .rv-toggle{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;font-size:14px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2}
@@ -166,13 +166,13 @@ body{
 const CONFIG = {
   lv: {
     axes: {
-      Vmin: 0, Vmax: 15,
+      Vmin: 0, Vmax: 12,
       Pmin: 0, Pmax: 100,
       // SVG plot area (left/right of X axis, bottom/top of Y axis).
       // viewBox is 0 0 680 380 so y0/y1 are inside that box.
       x0: 100, x1: 625,
       y0: 325, y1: 15,
-      vTicks: [0, 3, 6, 9, 12, 15],
+      vTicks: [0, 3, 6, 9, 12],
       pTicks: [0, 20, 40, 60, 80, 100],
     },
     model: {
@@ -196,11 +196,11 @@ const CONFIG = {
   },
   rv: {
     axes: {
-      Vmin: 0, Vmax: 15,
+      Vmin: 0, Vmax: 12,
       Pmin: 0, Pmax: 60,
       x0: 100, x1: 625,
       y0: 325, y1: 15,
-      vTicks: [0, 3, 6, 9, 12, 15],
+      vTicks: [0, 3, 6, 9, 12],
       pTicks: [0, 15, 30, 45, 60],
     },
     model: {
