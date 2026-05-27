@@ -29,8 +29,10 @@ body{
 .kpi-text{font-size:20px;font-weight:600;fill:var(--color-text-primary);font-family:inherit;font-variant-numeric:tabular-nums}
 .svg-wrap{width:100%;aspect-ratio:680/380}
 .svg-wrap svg{width:100%;height:100%;display:block}
-.panel-title{font-size:14px;font-weight:600;color:var(--color-text-primary);margin:0 0 2px 4px}
+.panel-title{display:flex;align-items:baseline;gap:14px;font-size:14px;font-weight:600;color:var(--color-text-primary);margin:0 0 2px 4px}
+.panel-title .panel-label{flex:1}
 .panel-title .panel-sub{font-weight:400;color:var(--color-text-secondary);margin-left:6px}
+.panel-title .kpi{font-size:20px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;line-height:1}
 .app{display:flex;flex-direction:column;gap:12px;max-width:1600px;margin:0 auto}
 .plot-row{display:grid;grid-template-columns:1fr;gap:14px}
 @media (min-width:720px){
@@ -85,7 +87,7 @@ body{
 <div class="app">
 <div class="plot-row">
 <div class="svg-wrap lv-wrap">
-<div class="panel-title">Left ventricle <span class="panel-sub">— systemic circulation</span></div>
+<div class="panel-title"><span class="panel-label">Left ventricle <span class="panel-sub">— systemic circulation</span></span><span class="kpi kpi-bp"></span><span class="kpi kpi-co"></span></div>
 <svg viewBox="0 0 680 380" role="img" preserveAspectRatio="xMidYMid meet">
 <title>Left ventricle pressure-volume loop</title>
 <desc>Interactive LV PV loop where preload, afterload, contractility, and ventricular stiffness vary independently.</desc>
@@ -109,8 +111,6 @@ body{
 <path class="loop-fill" fill="#378ADD" opacity="0.15" d=""/>
 <path class="loop" fill="none" stroke="#378ADD" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" d=""/>
 </g>
-<text class="kpi-text kpi-bp" x="620" y="40" text-anchor="end"></text>
-<text class="kpi-text kpi-co" x="620" y="68" text-anchor="end"></text>
 </svg>
 </div>
 
@@ -459,10 +459,11 @@ function updateMetrics(dLV, dRV, state) {
   const co       = Math.round(dLV.SV * state.hr);
   const co_kg    = Math.round(co / state.weight);
   const sv_kg    = (dLV.SV / state.weight).toFixed(1);
-  // KPI labels inside the LV chart -- big, bold, top-right of the
-  // plot area. The two numbers a clinician most cares about.
-  svgLV.querySelector('.kpi-bp').textContent = 'BP ' + sys + '/' + dia + ' mmHg';
-  svgLV.querySelector('.kpi-co').textContent = 'CO ' + co_kg + ' mL/kg/min';
+  // KPI labels in the LV panel-title bar (right-aligned). Outside the
+  // SVG so they can never collide with the loop, the ESPVR line, or
+  // the boundary labels. The two numbers a clinician most cares about.
+  document.querySelector('.lv-wrap .kpi-bp').textContent = 'BP ' + sys + '/' + dia + ' mmHg';
+  document.querySelector('.lv-wrap .kpi-co').textContent = 'CO ' + co_kg + ' mL/kg/min';
   // RV side ---------------------------------------------------------
   const pa_sys = Math.round(dRV.peak);
   const pa_dia = Math.round(dRV.AVO);
