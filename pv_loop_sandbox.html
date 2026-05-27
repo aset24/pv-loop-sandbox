@@ -51,6 +51,15 @@ body{
 .metric{display:inline-flex;align-items:baseline;gap:7px;padding:7px 12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:14px}
 .metric-label{color:var(--color-text-secondary);font-size:13px}
 .metric-value{font-weight:600;font-variant-numeric:tabular-nums}
+.presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.preset{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;font-size:15px;font-family:inherit;font-weight:500;color:var(--color-text-primary);background:var(--color-background-secondary);border:1px solid transparent;border-radius:var(--border-radius-md);cursor:pointer;line-height:1.2;white-space:nowrap}
+.preset:hover{background:var(--color-background-tertiary)}
+.preset.active{background:#378ADD;color:#fff;border-color:#2c6ec0}
+.preset .kbd{display:inline-block;min-width:18px;padding:1px 5px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-align:center;background:var(--color-background-primary);color:var(--color-text-secondary);border-radius:3px}
+.preset.active .kbd{background:rgba(255,255,255,0.25);color:#fff}
+.preset:focus-visible{outline:2px solid #378ADD;outline-offset:2px}
+.help{margin-top:10px;font-size:12px;color:var(--color-text-tertiary)}
+.help .kbd{display:inline-block;padding:1px 5px;font-size:12px;font-weight:600;background:var(--color-background-secondary);border-radius:3px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -83,11 +92,13 @@ body{
 </div>
 
 <div class="controls-col">
+<div class="presets" id="presets"></div>
 <div class="sr"><label>Preload</label><input type="range" id="preload" min="2" max="12" value="6" step="0.2"/><span class="v" id="preload-v">6.0 mL</span></div>
 <div class="sr"><label>Afterload</label><input type="range" id="afterload" min="15" max="70" value="35" step="1"/><span class="v" id="afterload-v">35 mmHg</span></div>
 <div class="sr b"><label>Contractility</label><input type="range" id="contract" min="3" max="20" value="10" step="0.5"/><span class="v" id="contract-v">10.0</span></div>
 <div class="sr b"><label>Ventricular stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
 <div class="note">Preload and afterload reposition the loop within the envelope. Contractility and ventricular stiffness (↓) move the boundaries themselves (ESPVR and EDPVR).</div>
+<div class="help"><span class="kbd">1</span>–<span class="kbd">9</span> jump to a preset · <span class="kbd">←</span> <span class="kbd">→</span> nudge the slider you last touched</div>
 </div>
 
 <div id="metrics"></div>
@@ -254,6 +265,20 @@ function renderLoop(state, axes, scales, model, group) {
 // --- UI wiring -------------------------------------------------------------
 const SLIDERS = ['preload', 'afterload', 'contract', 'stiff'];
 
+// Clinical presets. The label is what appears on the button; the slider
+// values are the four model inputs. Keys 1..9 map onto array positions.
+const PRESETS = [
+  { label: 'Normal',          preload: 6,  afterload: 35, E: 10, k: 1.0 },
+  { label: 'Hypovolaemia',    preload: 3,  afterload: 30, E: 10, k: 1.0 },
+  { label: 'PPHN',            preload: 4,  afterload: 30, E: 9,  k: 1.0 },
+  { label: 'AVM (high output)', preload: 10, afterload: 22, E: 8, k: 1.0 },
+  { label: 'Vasoplegia',      preload: 6,  afterload: 22, E: 10, k: 1.0 },
+  { label: 'Closing PDA',     preload: 6,  afterload: 50, E: 10, k: 1.0 },
+  { label: 'Inotropic support', preload: 5, afterload: 32, E: 15, k: 1.0 },
+  { label: 'Volume overload', preload: 10, afterload: 35, E: 10, k: 1.0 },
+  { label: 'Diastolic dysfn', preload: 7,  afterload: 35, E: 10, k: 2.5 },
+];
+
 function readState() {
   return {
     preload:   +document.getElementById('preload').value,
@@ -291,10 +316,89 @@ function update() {
   updateMetrics(d);
 }
 
-SLIDERS.forEach(id => {
-  document.getElementById(id).addEventListener('input', update);
+// Build preset buttons. Done in JS rather than markup so that adding/
+// renaming/reordering a preset is one PRESETS array edit.
+const presetsEl = document.getElementById('presets');
+presetsEl.innerHTML = PRESETS.map((p, i) =>
+  '<button type="button" class="preset" data-idx="' + i + '" title="Press ' + (i+1) + '">'
+  + '<span class="kbd">' + (i+1) + '</span> ' + p.label
+  + '</button>'
+).join('');
+
+function applyPreset(i) {
+  const p = PRESETS[i];
+  if (!p) return;
+  document.getElementById('preload').value   = p.preload;
+  document.getElementById('afterload').value = p.afterload;
+  document.getElementById('contract').value  = p.E;
+  document.getElementById('stiff').value     = p.k;
+  update();
+  // Visual: highlight the active preset button. Cleared when the user
+  // touches any slider (they've now diverged from the preset).
+  for (const btn of presetsEl.querySelectorAll('.preset')) {
+    btn.classList.toggle('active', +btn.dataset.idx === i);
+  }
+}
+
+presetsEl.addEventListener('click', e => {
+  const btn = e.target.closest('.preset');
+  if (btn) applyPreset(+btn.dataset.idx);
 });
-update();
+
+// Track the last slider the user touched so arrow keys can nudge it
+// even when focus has wandered to a button.
+let lastSliderId = 'preload';
+
+SLIDERS.forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    lastSliderId = id;
+    // User moved a slider -> clear any active-preset highlight, since
+    // the state no longer matches the preset.
+    for (const btn of presetsEl.querySelectorAll('.preset.active')) {
+      btn.classList.remove('active');
+    }
+    update();
+  });
+});
+
+// Keyboard shortcuts.
+// 1..9 -> jump to preset (works from anywhere on the page).
+// ArrowLeft / ArrowRight -> nudge lastSliderId by one step, ONLY when
+// focus is not on a range input (the browser already handles arrows
+// natively when a slider has focus, and we don't want to double-fire).
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key >= '1' && e.key <= '9') {
+    const idx = +e.key - 1;
+    if (idx < PRESETS.length) {
+      applyPreset(idx);
+      e.preventDefault();
+    }
+    return;
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const focused = document.activeElement;
+    if (focused && focused.tagName === 'INPUT' && focused.type === 'range') return;
+    const slider = document.getElementById(lastSliderId);
+    if (!slider) return;
+    const step = +slider.step || 1;
+    const min = +slider.min;
+    const max = +slider.max;
+    let next = +slider.value + (e.key === 'ArrowRight' ? step : -step);
+    next = Math.max(min, Math.min(max, Math.round(next / step) * step));
+    if (next === +slider.value) return;
+    slider.value = next;
+    // Dispatch 'input' so the existing slider handler runs (which
+    // updates lastSliderId, clears preset highlight, and re-renders).
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    e.preventDefault();
+  }
+});
+
+// Initial render. Default to the Normal preset so the file opens on a
+// recognisable loop rather than the slider default values (which happen
+// to match Normal here, but won't always as the model evolves).
+applyPreset(0);
 </script>
 </body>
 </html>
