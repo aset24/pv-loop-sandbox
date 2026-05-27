@@ -174,6 +174,9 @@ const CONFIG = {
       peak_min_above_AVC: 3,   // visual minimum pulse pressure (mmHg)
       peak_max: 95,            // visual cap so loops stay inside axis at
                                // extreme contractility (axis is 0-100)
+      loopShape: 'lv',         // 'lv' = symmetric cubic-Bezier arch
+                               // (rectangular/trapezoidal -- standard LV
+                               // textbook shape)
     },
   },
   rv: {
@@ -197,6 +200,15 @@ const CONFIG = {
       ESV_min: 0.3,
       peak_min_above_AVC: 3,
       peak_max: 57,            // visual cap inside the 0-60 RV pressure axis
+      loopShape: 'rv',         // 'rv' = triangular, with the ejection drawn
+                               // as a Q-Bezier slope from (EDV, PA-diastolic)
+                               // up to (ESV, peak). Matches the published
+                               // normal RV PV loop (Sunagawa & Maughan,
+                               // Brimioulle 2003, Naeije 2014, Vonk
+                               // Noordegraaf 2017 JACC) -- the low-resistance
+                               // pulmonary bed produces an early-rising,
+                               // late-peaking pressure profile, not the LV's
+                               // flat-topped plateau.
     },
   },
 };
@@ -300,11 +312,26 @@ function renderLoop(state, axes, scales, model, group) {
   const labD_y_min = axes.y1 + 14;  // 14 px below the top edge
   labD.setAttribute('y', Math.max(labD_y_min, labD_y_raw));
 
-  // Loop construction. Four phases:
+  // Loop construction.
+  //
+  // Shared geometry (both LV and RV):
   //   D -> A   filling, traces the EDPVR curve from ESV up to EDV
   //   A -> B   isovolumic contraction, vertical from EDP to AVO
-  //   B -> C   ejection, modeled as a cubic Bezier peaking at "peak"
-  //   C -> D   isovolumic relaxation, vertical from AVC to D_p
+  // Then the ejection + relaxation portion differs by loopShape:
+  //
+  //   loopShape: 'lv'  (default, rectangular/trapezoidal LV abstraction)
+  //     B -> C   ejection, cubic Bezier arching through peak mid-ejection
+  //     C -> D   isovolumic relaxation, vertical from AVC to D_p
+  //
+  //   loopShape: 'rv'  (triangular, matches Sunagawa & Maughan / Brimioulle
+  //                     2003 / Naeije 2014 / Vonk Noordegraaf 2017)
+  //     B -> Peak  ejection, Q-Bezier sloping up-left with subtle outward
+  //                bow. Peak pressure occurs at ESV (upper-left corner),
+  //                reflecting the late-peaking RV pressure profile in a
+  //                low-resistance pulmonary bed.
+  //     Peak -> D  combined valve-closure + relaxation, single vertical
+  //                drop. AVC and the isovolumic-relaxation distinction
+  //                collapse for visual clarity.
   const xA = xs(d.EDV),  yA = ys(d.EDP);
   const xB = xA,         yB = ys(d.AVO);
   const xC = xs(d.ESV),  yC = ys(d.AVC);
@@ -317,14 +344,33 @@ function renderLoop(state, axes, scales, model, group) {
     fill += 'L ' + xs(V).toFixed(2) + ' ' + ys(pedV(V, state.k)).toFixed(2) + ' ';
   }
   const yPeak = ys(d.peak);
-  const ec1x = xB + (xC - xB) * 0.3, ec1y = yPeak;
-  const ec2x = xB + (xC - xB) * 0.7, ec2y = yPeak;
+
+  let ejection;
+  if (model.loopShape === 'rv') {
+    // Q-Bezier control point bows the slope outward (above the chord), so
+    // pressure rises faster at the start of ejection than at the end --
+    // matches the published RV pressure trace.
+    const midX   = (xB + xC) / 2;
+    const midY   = (yB + yPeak) / 2;
+    const bowOff = (yB - yPeak) * 0.08;       // ~8 % of slope height
+    const cpX    = midX;
+    const cpY    = midY - bowOff;              // smaller y = above chord
+    ejection = ' L ' + xB.toFixed(2) + ' ' + yB.toFixed(2)
+             + ' Q ' + cpX.toFixed(2) + ' ' + cpY.toFixed(2) + ', '
+                    + xC.toFixed(2) + ' ' + yPeak.toFixed(2)
+             + ' L ' + xC.toFixed(2) + ' ' + yD.toFixed(2);
+  } else {
+    const ec1x = xB + (xC - xB) * 0.3, ec1y = yPeak;
+    const ec2x = xB + (xC - xB) * 0.7, ec2y = yPeak;
+    ejection = ' L ' + xB.toFixed(2) + ' ' + yB.toFixed(2)
+             + ' C ' + ec1x.toFixed(2) + ' ' + ec1y.toFixed(2) + ', '
+                    + ec2x.toFixed(2) + ' ' + ec2y.toFixed(2) + ', '
+                    + xC.toFixed(2) + ' ' + yC.toFixed(2)
+             + ' L ' + xD.toFixed(2) + ' ' + yD.toFixed(2);
+  }
   const lp = 'M ' + xD.toFixed(2) + ' ' + yD.toFixed(2) + ' ' + fill
-           + 'L ' + xB.toFixed(2) + ' ' + yB.toFixed(2)
-           + ' C ' + ec1x.toFixed(2) + ' ' + ec1y.toFixed(2) + ', '
-                  + ec2x.toFixed(2) + ' ' + ec2y.toFixed(2) + ', '
-                  + xC.toFixed(2) + ' ' + yC.toFixed(2)
-           + ' L ' + xD.toFixed(2) + ' ' + yD.toFixed(2) + ' Z';
+           + ejection
+           + ' Z';
   group.querySelector('.loop').setAttribute('d', lp);
   group.querySelector('.loop-fill').setAttribute('d', lp);
 
