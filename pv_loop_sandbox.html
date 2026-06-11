@@ -148,14 +148,14 @@ body{
 <div class="presets" id="presets"></div>
 <div class="control-rows">
 <div class="control-col">
-<div class="sr"><label>Preload</label><input type="range" id="preload" min="2" max="12" value="6" step="0.2"/><span class="v" id="preload-v">6.0 mL</span></div>
+<div class="sr"><label>Preload</label><input type="range" id="preload" min="1.5" max="12" value="6" step="0.3"/><span class="v" id="preload-v">6.0 mL</span></div>
 <div class="sr"><label>Afterload</label><input type="range" id="afterload" min="15" max="70" value="35" step="1"/><span class="v" id="afterload-v">35 mmHg</span></div>
-<div class="sr b"><label>Contractility</label><input type="range" id="contract" min="3" max="20" value="10" step="0.5"/><span class="v" id="contract-v">10.0</span></div>
+<div class="sr b"><label>Contractility</label><input type="range" id="contract" min="0.3" max="2" value="1" step="0.05"/><span class="v" id="contract-v">1.00×</span></div>
 <div class="sr b"><label>Stiffness</label><input type="range" id="stiff" min="0.3" max="4" value="1" step="0.1"/><span class="v" id="stiff-v">1.0×</span></div>
 </div>
 <div class="control-col">
-<div class="sr"><label>Body weight</label><input type="range" id="weight" min="0.5" max="5" value="3" step="0.1"/><span class="v" id="weight-v">3.0 kg</span></div>
-<div class="sr"><label>Heart rate</label><input type="range" id="hr" min="80" max="200" value="140" step="1"/><span class="v" id="hr-v">140 bpm</span></div>
+<div class="sr"><label>Body weight</label><input type="range" id="weight" min="0.5" max="3" value="3" step="0.1"/><span class="v" id="weight-v">3.0 kg</span></div>
+<div class="sr"><label>Heart rate</label><input type="range" id="hr" min="120" max="180" value="150" step="1"/><span class="v" id="hr-v">150 bpm</span></div>
 <div class="sr sr-pa"><label>PA pressure</label><input type="range" id="pa" min="8" max="70" value="20" step="1"/><span class="v" id="pa-v">20 mmHg</span></div>
 </div>
 </div>
@@ -235,6 +235,84 @@ const CONFIG = {
     },
   },
 };
+
+// --- Weight scaling ---------------------------------------------------------
+// The values written above CONFIG are the term-baby (3 kg) calibration.
+// Chamber size scales linearly with body weight in neonates, so when the
+// user changes the body-weight slider we mutate the corresponding CONFIG
+// fields by a scale factor of (weight / 3). Everything else -- pressures,
+// dimensionless multipliers, viewBox geometry -- stays constant.
+//
+// The fields that scale with chamber size:
+//   axes.Vmax           x scale     (volume axis)
+//   model.V0            x scale     (ESPVR x-intercept)
+//   model.pedV_thresh   x scale     (EDPVR floor volume)
+//   model.pedV_a        / scale^2   (EDPVR quadratic coefficient)
+//   model.pedV_b        / scale     (EDPVR linear coefficient)
+//   model.SV_min        x scale     (loop's minimum stroke volume)
+//   model.ESV_min       x scale     (loop's minimum end-systolic volume)
+//
+// Emax also scales (smaller chamber needs higher Emax for same pressure)
+// but lives in the contractility slider rather than CONFIG -- the slider
+// value is a dimensionless multiplier and the actual Emax is computed at
+// render time via eActual().
+const BASE = JSON.parse(JSON.stringify(CONFIG));   // immutable baseline
+const E_NORMAL_AT_3KG       = 10;
+const PRELOAD_PER_KG_MIN    = 0.5;
+const PRELOAD_PER_KG_MAX    = 4.0;
+const PRELOAD_PER_KG_NORMAL = 2.0;
+
+function eActual(eSliderValue, weight) {
+  // E ∝ 1/weight so that peak pressure stays constant across weights at
+  // the same contractility multiplier. At 3 kg, x1.0 -> Emax 10.
+  return eSliderValue * E_NORMAL_AT_3KG * 3 / weight;
+}
+
+function makeVTicks(Vmax) {
+  // Five ticks evenly spaced from 0 to Vmax (Vmax/4 step). Rounded to
+  // 2 dp so small-baby axes (Vmax ~2 mL) read 0.5, 1.0, 1.5, 2.0.
+  const step = Vmax / 4;
+  return [0, step, 2 * step, 3 * step, Vmax].map(v => +v.toFixed(2));
+}
+
+// Mutates CONFIG so renderLoop / drawAxes / makeScales just use the
+// already-scaled values. Also resizes the preload slider's range and
+// rescales its value to preserve the user's preload-per-kg setting,
+// redraws both chambers' axes, and recomputes the scales closures.
+function applyWeightScale(weight) {
+  const scale = weight / 3;
+  for (const ch of ['lv', 'rv']) {
+    const ba = BASE[ch].axes, bm = BASE[ch].model;
+    CONFIG[ch].axes.Vmax        = ba.Vmax * scale;
+    CONFIG[ch].axes.vTicks      = makeVTicks(CONFIG[ch].axes.Vmax);
+    CONFIG[ch].model.V0          = bm.V0 * scale;
+    CONFIG[ch].model.pedV_thresh = bm.pedV_thresh * scale;
+    CONFIG[ch].model.pedV_a      = bm.pedV_a / (scale * scale);
+    CONFIG[ch].model.pedV_b      = bm.pedV_b / scale;
+    CONFIG[ch].model.SV_min      = bm.SV_min * scale;
+    CONFIG[ch].model.ESV_min     = bm.ESV_min * scale;
+  }
+  // Rebuild scales closures (Vmax changed) and redraw the axes for
+  // both chambers (in alone or side mode, whichever LV is currently in).
+  if (typeof scalesLV !== 'undefined') {
+    scalesLV = makeScales(CONFIG.lv.axes);
+    scalesRV = makeScales(CONFIG.rv.axes);
+    drawAxes(svgLV, CONFIG.lv.axes, scalesLV);
+    drawAxes(svgRV, CONFIG.rv.axes, scalesRV);
+  }
+  // Resize the preload slider and rescale its value to preserve mL/kg.
+  const pre = document.getElementById('preload');
+  const oldMax = +pre.max;
+  const oldValue = +pre.value;
+  const newMax = PRELOAD_PER_KG_MAX * weight;
+  const newMin = PRELOAD_PER_KG_MIN * weight;
+  const newStep = Math.max(0.05, +(0.1 * weight).toFixed(2));
+  const newValue = oldMax > 0 ? (oldValue / oldMax) * newMax : PRELOAD_PER_KG_NORMAL * weight;
+  pre.min  = newMin.toString();
+  pre.max  = newMax.toString();
+  pre.step = newStep.toString();
+  pre.value = newValue.toString();
+}
 
 // --- Pure functions (no DOM) ----------------------------------------------
 function makeScales(a) {
@@ -409,16 +487,20 @@ const SLIDERS = ['preload', 'afterload', 'contract', 'stiff', 'hr', 'weight', 'p
 
 // Clinical presets. The label is what appears on the button; the slider
 // values are the four model inputs. Keys 1..9 map onto array positions.
+// Presets store preload as mL/kg (scaled with weight at apply time) and
+// contractility as a dimensionless multiplier (passed through directly --
+// the slider semantics are also a multiplier). Afterload, stiffness, and
+// PA pressure are absolute and don't scale with weight.
 const PRESETS = [
-  { label: 'Normal',          preload: 6,  afterload: 35, E: 10, k: 1.0, pa: 20 },
-  { label: 'Hypovolaemia',    preload: 3,  afterload: 22, E: 10, k: 1.0, pa: 18 },
-  { label: 'PPHN',            preload: 4,  afterload: 30, E: 9,  k: 1.0, pa: 55 },
-  { label: 'AVM (high output)', preload: 10, afterload: 22, E: 8, k: 1.0, pa: 28 },
-  { label: 'Vasoplegia',      preload: 6,  afterload: 18, E: 10, k: 1.0, pa: 20 },
-  { label: 'Poor contractility', preload: 8,  afterload: 25, E: 4,  k: 1.0, pa: 25 },
-  { label: 'Inotropic support', preload: 5, afterload: 32, E: 15, k: 1.0, pa: 20 },
-  { label: 'Volume overload', preload: 10, afterload: 35, E: 10, k: 1.0, pa: 25 },
-  { label: 'Diastolic dysfn', preload: 7,  afterload: 35, E: 10, k: 2.5, pa: 22 },
+  { label: 'Normal',             preload_per_kg: 2.00, afterload: 35, E_x: 1.0, k: 1.0, pa: 20 },
+  { label: 'Hypovolaemia',       preload_per_kg: 1.00, afterload: 22, E_x: 1.0, k: 1.0, pa: 18 },
+  { label: 'PPHN',               preload_per_kg: 1.33, afterload: 30, E_x: 0.9, k: 1.0, pa: 55 },
+  { label: 'AVM (high output)',  preload_per_kg: 3.33, afterload: 22, E_x: 0.8, k: 1.0, pa: 28 },
+  { label: 'Vasoplegia',         preload_per_kg: 2.00, afterload: 18, E_x: 1.0, k: 1.0, pa: 20 },
+  { label: 'Poor contractility', preload_per_kg: 2.67, afterload: 25, E_x: 0.4, k: 1.0, pa: 25 },
+  { label: 'Inotropic support',  preload_per_kg: 1.67, afterload: 32, E_x: 1.5, k: 1.0, pa: 20 },
+  { label: 'Volume overload',    preload_per_kg: 3.33, afterload: 35, E_x: 1.0, k: 1.0, pa: 25 },
+  { label: 'Diastolic dysfn',    preload_per_kg: 2.33, afterload: 35, E_x: 1.0, k: 2.5, pa: 22 },
 ];
 
 function readState() {
@@ -436,7 +518,7 @@ function readState() {
 function updateSliderValues(state) {
   document.getElementById('preload-v').textContent   = state.preload.toFixed(1) + ' mL';
   document.getElementById('afterload-v').textContent = Math.round(state.afterload) + ' mmHg';
-  document.getElementById('contract-v').textContent  = state.E.toFixed(1);
+  document.getElementById('contract-v').textContent  = state.E.toFixed(2) + '×';
   document.getElementById('stiff-v').textContent     = state.k.toFixed(1) + '×';
   document.getElementById('hr-v').textContent        = Math.round(state.hr) + ' bpm';
   document.getElementById('weight-v').textContent    = state.weight.toFixed(1) + ' kg';
@@ -543,10 +625,13 @@ const RV_E_FRACTION = 0.5;  // RV contractility = 0.5 * LV contractility
 function update() {
   const state = readState();
   updateSliderValues(state);
-  // LV loop -- HR and weight don't enter the loop geometry, they're
-  // metric-side only.
+  // Contractility slider is a dimensionless multiplier; convert to
+  // actual Emax (which scales inversely with weight).
+  const E_actual = eActual(state.E, state.weight);
+  // LV loop -- HR doesn't enter the loop geometry, weight enters only
+  // via the scaled CONFIG.lv.model and the E_actual conversion above.
   const dLV = renderLoop(
-    { preload: state.preload, afterload: state.afterload, E: state.E, k: state.k },
+    { preload: state.preload, afterload: state.afterload, E: E_actual, k: state.k },
     CONFIG.lv.axes, scalesLV, CONFIG.lv.model, lvGroup
   );
   // RV loop -- shared venous return (preload), reduced contractility,
@@ -554,7 +639,7 @@ function update() {
   const dRV = renderLoop(
     { preload: state.preload,
       afterload: state.pa,
-      E: state.E * RV_E_FRACTION,
+      E: E_actual * RV_E_FRACTION,
       k: state.k },
     CONFIG.rv.axes, scalesRV, CONFIG.rv.model, rvGroup
   );
@@ -573,9 +658,10 @@ presetsEl.innerHTML = PRESETS.map((p, i) =>
 function applyPreset(i) {
   const p = PRESETS[i];
   if (!p) return;
-  document.getElementById('preload').value   = p.preload;
+  const w = +document.getElementById('weight').value;
+  document.getElementById('preload').value   = (p.preload_per_kg * w).toFixed(2);
   document.getElementById('afterload').value = p.afterload;
-  document.getElementById('contract').value  = p.E;
+  document.getElementById('contract').value  = p.E_x;
   document.getElementById('stiff').value     = p.k;
   document.getElementById('pa').value        = p.pa;
   update();
@@ -621,6 +707,13 @@ SLIDERS.forEach(id => {
     // the state no longer matches the preset.
     for (const btn of presetsEl.querySelectorAll('.preset.active')) {
       btn.classList.remove('active');
+    }
+    // Body weight is special: chamber size changes, so axes, model
+    // parameters, and the preload slider's range all need to rescale
+    // BEFORE we re-render the loop. applyWeightScale handles all of
+    // that and preserves the user's preload-per-kg setting.
+    if (id === 'weight') {
+      applyWeightScale(+document.getElementById('weight').value);
     }
     update();
   });
@@ -669,6 +762,10 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Initial weight scale (default 3 kg). Mutates CONFIG and resizes the
+// preload slider before the first render so axes and model parameters
+// are correct from the first frame.
+applyWeightScale(+document.getElementById('weight').value);
 // LV is the primary teaching view; RV is opt-in. Switch to LV-only
 // before applying the preset so the geometry is final by the time
 // the loop draws.
