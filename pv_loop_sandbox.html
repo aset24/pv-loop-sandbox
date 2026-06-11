@@ -197,6 +197,13 @@ const CONFIG = {
       peak_min_above_AVC: 3,   // visual minimum pulse pressure (mmHg)
       peak_max: 95,            // visual cap so loops stay inside axis at
                                // extreme contractility (axis is 0-100)
+      starling_optimal_EDV: 9, // Frank-Starling plateau EDV at 3 kg
+                               // (1.5x the Normal preset's 6 mL). EDV below
+                               // this -> full Emax. EDV above -> Emax
+                               // declines per starlingFactor (computeLoop).
+      starling_k: 3,           // steepness of the descending limb (k=3 is
+                               // a gentle plateau-then-decline; higher k =
+                               // sharper drop after optimal)
       loopShape: 'lv',         // 'lv' = symmetric cubic-Bezier arch
                                // (rectangular/trapezoidal -- standard LV
                                // textbook shape)
@@ -223,6 +230,8 @@ const CONFIG = {
       ESV_min: 0.3,
       peak_min_above_AVC: 3,
       peak_max: 57,            // visual cap inside the 0-60 RV pressure axis
+      starling_optimal_EDV: 9, // Same as LV -- RV chamber is the same size
+      starling_k: 3,           //   and shares the same length-tension shape
       loopShape: 'rv',         // 'rv' = triangular, with the ejection drawn
                                // as a Q-Bezier slope from (EDV, PA-diastolic)
                                // up to (ESV, peak). Matches the published
@@ -291,6 +300,7 @@ function applyWeightScale(weight) {
     CONFIG[ch].model.pedV_b      = bm.pedV_b / scale;
     CONFIG[ch].model.SV_min      = bm.SV_min * scale;
     CONFIG[ch].model.ESV_min     = bm.ESV_min * scale;
+    CONFIG[ch].model.starling_optimal_EDV = bm.starling_optimal_EDV * scale;
   }
   // Rebuild scales closures (Vmax changed) and redraw the axes for
   // both chambers (in alone or side mode, whichever LV is currently in).
@@ -332,10 +342,21 @@ function computeLoop(state, m) {
   const pedV = makePedV(m);
   const EDV = state.preload;
   const AVO = state.afterload;
-  const E = state.E;
+  const E_intrinsic = state.E;
   const k = state.k;
   const EDP = pedV(EDV, k);
   const AVC = AVO * m.AVO_to_AVC_ratio;
+  // Frank-Starling: below the chamber's optimal filling volume, Emax
+  // is fully expressed. Above it, Emax declines smoothly so SV plateaus
+  // then drops -- the descending limb. Without this, dragging preload
+  // higher and higher gave unbounded SV / CO. (See Klabunde, Costanzo;
+  // and the length-dependent Emax derivation in Sagawa & Maughan.)
+  let starlingFactor = 1;
+  if (EDV > m.starling_optimal_EDV) {
+    const overshoot = (EDV - m.starling_optimal_EDV) / m.starling_optimal_EDV;
+    starlingFactor = 1 / (1 + (overshoot * m.starling_k) ** 2);
+  }
+  const E = E_intrinsic * starlingFactor;
   const Pmax = E * (EDV - m.V0);
 
   let ESV = m.V0 + AVC / E;
