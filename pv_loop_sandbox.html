@@ -271,10 +271,32 @@ const PRELOAD_PER_KG_MIN    = 0.5;
 const PRELOAD_PER_KG_MAX    = 4.0;
 const PRELOAD_PER_KG_NORMAL = 2.0;
 
+// BP norm helpers. Calibrated against Hegyi et al, J Pediatr 1994;
+// 124:627-33 -- "Blood pressure ranges in premature infants. I."
+// Key finding (Table III): healthy preterm BP is essentially flat
+// across the 500-2000 g range (Smin/max 47/59, Dmin/max 24/35, MAP
+// ~35 mmHg). Above 2 kg we interpolate up to standard term BP norms.
+function normalAfterloadFor(weight) {
+  // Target aortic diastolic (= AVO slider) at the Normal preset.
+  if (weight <= 2) return 28;
+  if (weight >= 3) return 35;
+  return 28 + 7 * (weight - 2);
+}
+function pmaxTargetFor(weight) {
+  // Intrinsic Pmax at x1.0 contractility, calibrated so peak
+  // pressure (= systolic) at Normal lands at ~50 preterm, ~60 term.
+  if (weight <= 2) return 68;
+  if (weight >= 3) return 80;
+  return 68 + 12 * (weight - 2);
+}
+function bpScale(weight)   { return normalAfterloadFor(weight) / 35; }
+function pmaxScale(weight) { return pmaxTargetFor(weight) / 80; }
+
 function eActual(eSliderValue, weight) {
-  // E ∝ 1/weight so that peak pressure stays constant across weights at
-  // the same contractility multiplier. At 3 kg, x1.0 -> Emax 10.
-  return eSliderValue * E_NORMAL_AT_3KG * 3 / weight;
+  // E ∝ 1/weight (chamber-size scaling), multiplied by pmaxScale so
+  // that peak pressure tracks the Hegyi preterm BP plateau when
+  // weight <= 2 kg. At 3 kg, x1.0 -> Emax 10 (unchanged).
+  return eSliderValue * E_NORMAL_AT_3KG * 3 / weight * pmaxScale(weight);
 }
 
 function makeVTicks(Vmax) {
@@ -680,8 +702,12 @@ function applyPreset(i) {
   const p = PRESETS[i];
   if (!p) return;
   const w = +document.getElementById('weight').value;
+  // Preset afterload values are the term (3 kg) calibration. Scale by
+  // bpScale so the preterm plateau (~28 mmHg diastolic for Normal) is
+  // automatic at weights <= 2 kg. PA pressure stays absolute (the
+  // suprasystemic PPHN definition is easier to keep clean that way).
   document.getElementById('preload').value   = (p.preload_per_kg * w).toFixed(2);
-  document.getElementById('afterload').value = p.afterload;
+  document.getElementById('afterload').value = Math.round(p.afterload * bpScale(w));
   document.getElementById('contract').value  = p.E_x;
   document.getElementById('stiff').value     = p.k;
   document.getElementById('pa').value        = p.pa;
